@@ -9,7 +9,7 @@ From the stow directory, the files in each subfolder (stow package) can be deplo
 `stow <folder_name>`
 
 However, `stow` is not able to handle conflicts with existing files in every case.
-To make life easier, the script `stow-safe creates backups of conflicting files during the stow operation.
+To make life easier, the script `stow-safe` creates backups of conflicting files during the stow operation.
 The script also calls `stow` for all packages in the repository.
 The script `stow-home` defaults stowing from "$HOME/.dotfiles" to "$HOME".
 
