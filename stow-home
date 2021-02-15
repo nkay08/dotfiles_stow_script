@@ -1,0 +1,22 @@
+#! /bin/sh
+
+BASEDIR=$(dirname "$0")
+
+if [ -z "$DOTFILES_DIR" ]; then
+  DOTFILES_DIR="$HOME/.dotfiles"
+fi
+
+if [ ! -d "$HOME" ]; then
+  echo "No Home folder"
+  exit 1
+fi
+
+
+if [ ! -d "$DOTFILES_DIR" ]; then
+  echo "No dotfiles foder"  
+  exit 1
+fi
+
+cd "$DOTFILES_DIR"
+
+"$BASEDIR"/stow-safe "$HOME" "$DOTFILES_DIR"

@@ -1,0 +1,104 @@
+# /bin/bash
+
+# Set directory of the scripts in variable
+DIR="$PWD"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+TARGET_DIR="$DIR/.."
+STOW_DIR="$DIR"
+
+if [ ! -z "$1" ]; then
+    TARGET_DIR="$1"
+fi
+
+if [ ! -z "$2" ]; then
+    STOW_DIR="$2"
+fi
+
+echo "Stow dir $STOW_DIR"
+echo "Target dir $TARGET_DIR"
+
+# Set directory name for file conflicts
+CONFLICTS_DIRNAME="conflicts"
+CONFLICTS_DIR="$STOW_DIR/$CONFLICTS_DIRNAME"
+
+STOW_SCRIPT_DIR="dotfiles_stow_script"
+
+# Change to script dir, as stow packages are there
+# Do not change for now, so script can be called from other directories!
+#cd "$SCRIPT_DIR"
+
+# source stow variables
+#source "$SCRIPT_DIR/shell/.bashrc.d/stow"
+
+# Get list of all local packages
+cd "$STOW_DIR"
+STOW_LIST=( $(  ls -d  */  | sed 's#/##'  ) )
+
+#STOW_LIST=(
+#    "shell"
+#    "texlive"
+#    "rofi"
+#    "zsh"
+#)
+
+# Set list of packages that shall not be stowed
+NOT_STOW_LIST=( 
+"$CONFLICTS_DIRNAME"
+"$CONFLICTS_DIRNAME/"
+"$STOW_SCRIPT_DIR"
+)
+
+if [ -f $SCRIPT_DIR/.stowignore ]; then
+  IFS=$'\n' read -d  '' -r -a lines < $SCRIPT_DIR/.stowignore
+  NOT_STOW_LIST+=( "${lines[@]}" )
+fi
+
+# Remove packages that shall not be stowed from list
+for remove in ${NOT_STOW_LIST[@]}; do
+    STOW_LIST=( ${STOW_LIST[@]/$remove} )
+done
+
+
+echo  "Folders to stow: "
+echo  "------------------------------------------"
+echo  "${STOW_LIST[@]}"
+echo  "------------------------------------------"
+
+echo -n "Stow these? [Yn]"
+read stow_folders
+
+if [ "$stow_folders" == "${stow_folders#[nN]}" ]; then
+    # For each stow package in list
+    for stowpkg in ${STOW_LIST[@]};  do
+        echo "STOW $stowpkg"
+        # Check if the stow operation would result in a conflict, by performing a dry-run and store conflicted files in array
+        #conflicts=$(stow  -nv "$stowpkg" 2>&1  |  grep "existing target" )
+        conflicts_arr=( $(stow -t "$TARGET_DIR" -d "$STOW_DIR"  -nv "$stowpkg" 2>&1 | grep "existing target is neither a link nor a directory: *" | sed 's/\* existing target is neither a link nor a directory://' | sed 's/^[ \t]//' ) )
+        # If there are conflicts, backup existing file
+        if [   ${#conflicts_arr[@]} -gt 0  ];  then
+            echo "CONFLICTING  files: "
+            echo "${conflicts_arr[@]}"
+            mkdir -p $CONFLICTS_DIR
+            now=$(date +"%Y-%m-%d-%H-%M-%s")
+            # For each conflicted file in array do
+            for conflict_file in ${conflicts_arr[@]}; do
+                # Create subfolder for file if it does not exist
+                conflict_dirname=$(dirname $conflict_file)
+                conflict_copy_folder="$CONFLICTS_DIR/$conflict_dirname"
+                mkdir -p "$conflict_copy_folder"
+                
+                # Move existing file to backup location with timestamp
+                echo "Moving conflict:  mv ../$conflict_file   $CONFLICTS_DIR/$conflict_file.$now"
+                mv "../$conflict_file"  "$CONFLICTS_DIR/$conflict_file.$now"
+            done
+        fi
+        stow  -v -t "$TARGET_DIR" -d "$STOW_DIR"  "$stowpkg"
+    done
+    exit 0
+else
+    exit 0
+fi
+
+
+exit 0
